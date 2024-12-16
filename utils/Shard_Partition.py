@@ -69,7 +69,7 @@ class Partitioning:
         # 获取hash分片编号
         def hash_id(level, ind, val, hashed, S):
             id = (val + ind) % S
-            while id in hashed[level]:
+            while id in hashed[level]: # 解决哈希碰撞
                 val = val + 1
                 id = (val + ind) % S
             return id
