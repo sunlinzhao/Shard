@@ -22,6 +22,8 @@ class Node(threading.Thread):
         threading.Thread.__init__(self)
         self.daemon = True
 
+        self.running = False
+
         self.local_ip = local_ip
         self.local_port = local_port
 
@@ -58,6 +60,7 @@ class Node(threading.Thread):
         self.clock = LogicalClock(WAIT_PACK, self.packed_dag_block, args=()) # 逻辑时钟, 每间隔 3 秒做一次操作
 
     def run(self):
+        self.running = True
         # 创建socket
         listen_socket = self.create_socket(self.local_ip, self.local_port)
         # 进入监听状态
@@ -66,11 +69,22 @@ class Node(threading.Thread):
         self.clock.start()
         # 写入日志,节点启动并监听
         logger.info(f'| Shard [{self.shard_id}] : Node [{self.node_id}] >>> listening on ({self.local_ip}:{self.local_port})')
-        while True:
-            # 返回的 dataSocket 用来通信、传输数据
-            dataSocket, addr = listen_socket.accept()
-            # logger.info(f'| Node [{self.node_id}] linked to {addr} !')
-            self.pool.submit(self.handle_connect, dataSocket)
+        while self.running:
+            try:
+                # 返回的 dataSocket 用来通信、传输数据
+                dataSocket, addr = listen_socket.accept()
+                # logger.info(f'| Node [{self.node_id}] linked to {addr} !')
+                self.pool.submit(self.handle_connect, dataSocket)
+            except Exception as e:
+                if self.running:
+                    logger.error(f"Node {self.node_id} encountered an error：{e}")
+                break
+
+    def stop(self):
+        self.running = False
+        self.serverSocket.close()
+        self.pool.shutdown(wait=True)  # 等待当前任务完成
+        logger.info(f"Node {self.node_id} stopped.")
 
     def handle_connect(self, dataSocket):
         # 尝试读取对方发送的消息, BUF_LEN 指定从接收缓冲里最多读取多少字节。阻塞方式

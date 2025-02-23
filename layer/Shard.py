@@ -50,6 +50,10 @@ class Shard:
         for peer in self.peers:
             peer.start()
 
+    def stop(self):
+        for peer in self.peers:
+            peer.stop()
+
     # 获得分片节点数量
     def get_num(self):
         return len(self.peers)
